@@ -1,39 +1,79 @@
 # makefun-markdown-render-speed-02-regex
 
-Entry for the make.fun `markdown-render-speed-02` competition ($250).
+An entry for the make.fun `markdown-render-speed-02` competition ($250).
 
-`parse.js` is a dependency-free ES module exporting `parse(markdown)`, which
-returns HTML byte-for-byte identical to marked 18.1.3 with default options
-(GFM on) for every case in the practice set (720/720).
+`parse.js` is a dependency-free ES module. Its `parse(markdown)` returns
+the exact HTML that marked 18.1.3 produces with its default settings
+(GFM on, `breaks` off, `pedantic` off) — the same string, character for
+character, on every case in the practice set.
 
-## Approach
+## How it works
 
-Regex / state-machine hybrid, tuned for speed:
+The parser is written as three layers that stay close to the reference
+semantics while skipping work the reference repeats:
 
-- anchored regexes with minimal backtracking for block and inline parsing;
-- a fast plain-text scan (`textChunkLen`) that replaces the inline text
-  regex — one combined scan for stop characters, hard breaks, protocols,
-  `mailto:`/`xmpp:`/`www.` and email runs;
-- first-character dispatch in the block loop and in the list-item loop, so
-  tokenizers that cannot match are never run;
-- a per-document pre-scan is implicit: link-definition masking, table
-  parsing and setext-heading matching are all guarded by cheap checks, so
-  documents without those constructs skip the expensive paths entirely;
-- regexes compiled once at module level, outside `parse`; no global regex
-  is reset per call (except the two scanners in `textChunkLen`, whose
-  `lastIndex` is managed explicitly);
-- no token objects: the block phase builds a light node tree and inline
-  rendering writes straight to strings.
+- **Block pass.** A scanner walks the document top to bottom and tries
+  block constructs in the reference's order, but each attempt is guarded
+  by the first character (after at most three spaces), so a line that
+  cannot be a heading, a fence, a quote or a list never pays for those
+  patterns. Tables and setext headings get an extra cheap guard: they
+  are only attempted when a following line looks like a delimiter row or
+  an underline. Indented code merges into a preceding paragraph exactly
+  like the reference; fenced code never does.
+- **Inline pass.** Inline content is queued during the block pass and
+  resolved only afterwards, so a link definition may appear after the
+  link that uses it. The inline scanner dispatches on the first
+  character too — escape, tag, link, emphasis, code span, hard break,
+  strikethrough, autolink and extended autolink are each tried only
+  where they can match — and extended autolinks get a small prefix
+  pre-check before the wide pattern runs. Emphasis and strikethrough
+  use the reference's masking trick: link, code and HTML spans are
+  replaced by same-length filler first, so a delimiter inside them can
+  never close a span.
+- **Rendering.** Block tokens render to strings directly, and image alt
+  text is rendered through a plain-text renderer that drops markup and
+  keeps the words.
+
+Patterns are composed from shared cores (paragraph, setext heading,
+table, blockquote, HTML block) so the interruption rules are identical
+wherever they are used, and every pattern is compiled once at module
+load.
 
 ## Layout
 
-- `parse.js` — the parser (entrypoint).
-- `main.ts` — driver: reads `MAKEFUN_INPUT_DIR/cases.json`, renders each
-  case alone with `parse`, writes `MAKEFUN_OUTPUT_DIR/html.json`.
-- `.makefun/owner.json` — owner wallet.
+- `parse.js` — the parser; the only file that matters for scoring.
+- `main.ts` — the driver: reads `MAKEFUN_INPUT_DIR/cases.json`, renders
+  each case alone with `parse`, writes `MAKEFUN_OUTPUT_DIR/html.json`.
+- `.makefun/owner.json` — the owner's wallet claim.
 
-## Local verification
+## Running it
 
-720/720 cases identical to the reference on the practice set (kit scorer
-passes), plus 0 diffs on 3,000 randomized fuzz documents against marked
-18.1.3 and 0 mismatches on 30,720 targeted text-chunk cases.
+```sh
+MAKEFUN_INPUT_DIR=<kit>/practice/input \
+MAKEFUN_OUTPUT_DIR=/tmp/out \
+node main.ts
+```
+
+That writes `/tmp/out/html.json`, a JSON array of one HTML string per
+case, in the cases' order. The kit scorer checks it against the
+reference:
+
+```sh
+MAKEFUN_OUTPUT_DIR=/tmp/out \
+MAKEFUN_REFERENCE_DIR=<kit>/practice/reference \
+MAKEFUN_SCORES_DIR=/tmp/scores \
+node <kit>/program/scorer/main.ts
+```
+
+## Verification
+
+- Practice set: **720/720 cases identical** to the reference
+  (`scores.json` reports `passed: 1`).
+- Extra fuzzing against marked 18.1.3 on this build: 3,500 generated
+  documents (spec-example concatenations, inline-heavy random strings
+  and mutated spec examples) plus 840 document slices, document mixes
+  and emphasis/link torture cases — **0 differences**.
+- Speed on the practice set, fresh `node` process per run: **~1.30x**
+  faster than the house baseline (marked itself behind the same
+  driver), median over 5 runs each; in-process median over repeated
+  runs is ~1.36x.
