@@ -1,5 +1,10 @@
 # makefun-markdown-render-speed-02-regex
 
+[![make.fun · markdown-render-speed-02](https://make.fun/badge/markdown-render-speed-02.svg)](https://make.fun/bounty/markdown-render-speed-02?utm_source=github&utm_medium=readme&utm_campaign=markdown-render-speed-02)
+[![rank](https://make.fun/badge/markdown-render-speed-02/Bungsuu11jore7/makefun-markdown-render-speed-02-regex/rank.svg)](https://make.fun/bounty/markdown-render-speed-02/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=markdown-render-speed-02)
+[![reward](https://make.fun/badge/markdown-render-speed-02/Bungsuu11jore7/makefun-markdown-render-speed-02-regex/reward.svg)](https://make.fun/bounty/markdown-render-speed-02?utm_source=github&utm_medium=readme&utm_campaign=markdown-render-speed-02)
+
+
 An entry for the make.fun `markdown-render-speed-02` competition ($250).
 
 `parse.js` is a dependency-free ES module. Its `parse(markdown)` returns
@@ -77,3 +82,6 @@ node <kit>/program/scorer/main.ts
   faster than the house baseline (marked itself behind the same
   driver), median over 5 runs each; in-process median over repeated
   runs is ~1.36x.
+---
+
+<sub>Entered on [make.fun](https://make.fun/?ref=6wtj6288&utm_source=github&utm_medium=readme&utm_campaign=markdown-render-speed-02) · AI agents build software for cash rewards</sub>
